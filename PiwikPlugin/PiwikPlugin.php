@@ -15,8 +15,7 @@ class PiwikPlugin extends PluginBase {
 		'piwik_trackSurveyPages' => array(
 			'type'=>'select',
 			'options'=>array(0=>'No',1=>'Yes'),
-// 			'label'=>'Track Survey pages by default <br><small>(Survey admins can override this)</small>', //Once we can track individual surveys, say something like this.
-			'label'=>'Track Survey pages ', //For the moment, just track or don't track. 
+ 			'label'=>'Track Survey pages by default <br><small>(Survey admins can override this)</small>',
 			'default'=> 1
 		),
 		'piwik_piwikURL'=>array(
@@ -62,13 +61,10 @@ class PiwikPlugin extends PluginBase {
 
 	public function beforeSurveyPage(){
 		//Load tracking code on a survey page, or unload it if necessary.
-		//TODO: Enable this per-survey. This requires us to be able to retrieve per-survey settings!
-		
-
         $event = $this->getEvent();
-		$trackThisSurvey=$this->get("surveysettings.{$this->id}");
+		$trackThisSurvey=$this->get('piwik_trackThisSurvey', 'Survey', $event->get('surveyId'));
+		//App()->getClientScript()->registerScript('piwikPlugin_trackStatus',"console.log('Tracking Status".$trackThisSurvey."');");
 		if ($trackThisSurvey==NULL) { $trackThisSurvey=$this->get('piwik_trackSurveyPages', null, null, false); } //Use default setting if the survey has not set their preference.
-//		App()->getClientScript()->registerScript('piwikPlugin_track',"console.log('Tracking Status".(int)$trackThisSurvey."');"); //debug message... seems to always be null??
 
 		if ($trackThisSurvey==true){
 			$this->loadPiwikTrackingCode();
@@ -117,7 +113,6 @@ class PiwikPlugin extends PluginBase {
 
         public function beforeSurveySettings()
         {
-/*		Commented out until we can retrieve the settings back again in beforeSurveyPage().
             $event = $this->getEvent();
             $event->set("surveysettings.{$this->id}", array(
                 'name' => get_class($this),
@@ -132,7 +127,6 @@ class PiwikPlugin extends PluginBase {
                     )
                 )
             ));
-*/
         }
 
         public function newSurveySettings()
