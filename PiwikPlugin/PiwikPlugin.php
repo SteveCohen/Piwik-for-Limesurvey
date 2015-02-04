@@ -38,6 +38,8 @@ class PiwikPlugin extends PluginBase {
 */
 	);
 
+	private $registeredTrackingCode;
+
 	public function __construct(PluginManager $manager, $id)
 	{
 		parent::__construct($manager, $id);
@@ -48,20 +50,18 @@ class PiwikPlugin extends PluginBase {
 	}
 
 	public function afterPluginLoad(){
-		/*
-		There's no clean way to detect whether this is a survey or admin page, so this workaround allows admins to choose whether surveys and/or admin interfaces are tracked.
-		Logic: If admin pages are being tracked and the tracking code hasn't been registered, then the code will be added (even to survey pages). If admin pages are not being tracked, then no code is added  (and we'll have to add tracking code to survey pages later). Yuck.
-		*/
-		
-		if (($this->registeredTrackingCode!=true)&&($this->get('piwik_trackAdminPages', null, null, false))){ 
+		/* Find the active controller with Yii parseUrl */
+		/* Remove for admin controller, review for plugins/direct */
+		$sController=Yii::app()->getUrlManager()->parseUrl(Yii::app()->getRequest());
+		if ( $this->registeredTrackingCode!=true && ( $this->get('piwik_trackAdminPages', null, null, false) || substr($sController, 0, 5)!='admin') )
+		{ 
 			$this->loadPiwikTrackingCode();
-
 		}
 	}
 
 	public function beforeSurveyPage(){
 		//Load tracking code on a survey page, or unload it if necessary.
-        $event = $this->getEvent();
+		$event = $this->getEvent();
 		$trackThisSurvey=$this->get('piwik_trackThisSurvey', 'Survey', $event->get('surveyId'));
 		//App()->getClientScript()->registerScript('piwikPlugin_trackStatus',"console.log('Tracking Status".$trackThisSurvey."');");
 		if ($trackThisSurvey==NULL) { $trackThisSurvey=$this->get('piwik_trackSurveyPages', null, null, false); } //Use default setting if the survey has not set their preference.
