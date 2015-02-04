@@ -47,6 +47,7 @@ class PiwikPlugin extends PluginBase {
 		$this->subscribe('afterPluginLoad');
 		$this->subscribe('beforeSurveyPage');
 		$this->subscribe('beforeSurveySettings');
+		$this->subscribe('afterSurveyComplete');
 	}
 
 	public function afterPluginLoad(){
@@ -73,6 +74,15 @@ class PiwikPlugin extends PluginBase {
 		}
 	}
 	
+	public function afterSurveyComplete(){
+        $event = $this->getEvent();
+		$surveyID=$event->get('surveyId');
+		$responseID=$event->get('responseId');
+
+		$js="_paq.push(['trackEvent', 'Survey', 'Survey-$surveyID', 'Submitted']);"; //Allows comparison of submit rates
+		App()->getClientScript()->registerScript('piwikPlugin_Event_Completed',$js,CClientScript::POS_END);		
+		
+	}
 	
 	
 
@@ -138,14 +148,6 @@ class PiwikPlugin extends PluginBase {
             }
         }
 
-
-	/* ----------Possible upcoming feature: Piwik Event tracking.---------
-	public function afterSurveyComplete($surveyID,$responseID){
-		//Add a Piwik event signifying the end of the survey
-		$eventJS="_paq.push(['trackEvent','LimeSurvey surveys', 'Survey #".surveyID."', 'Submitted']);";
-		App()->getClientScript()->registerScript('piwikPlugin_afterSurveyComplete',$eventJS);
-	}
-*/
 
 	/* ----------Possible upcoming feature: Piwik Content tracking.---------
 	function beforeSurveyPage(){
