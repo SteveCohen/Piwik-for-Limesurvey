@@ -170,7 +170,7 @@ class PiwikPlugin extends PluginBase {
         {
             case 'survey':
                 $piwikCustomUrl.="/".$iSurveyId;
-                if(Yii::app()->request->getParam('newtest'))
+                if(Yii::app()->request->getParam('newtest') || in_array('newtest',$aController))
                     $piwikCustomUrl.="/new";
                 elseif(Yii::app()->request->getParam('clearall'))
                     $piwikCustomUrl.="/clear";
@@ -196,7 +196,6 @@ class PiwikPlugin extends PluginBase {
                 $piwikCustomUrl.="/".$iSurveyId;
             break;
         }
-
         // TODO : Option to set language
 
         // Add a script piwikCustomUrl at begin of body. Just to set the piwikCustomUrl: this var can be updated in another function
