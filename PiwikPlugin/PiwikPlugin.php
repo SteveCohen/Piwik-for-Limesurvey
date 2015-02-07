@@ -1,5 +1,25 @@
 <?php
-
+/**
+ * PiwikPlugin Plugin for LimeSurvey
+ *
+ * @author Steve Cohen <https://github.com/SteveCohen>
+ * @author Denis Chenu <http://sondages.pro>
+ * 
+ * @copyright 2015 Steve Cohen <https://github.com/SteveCohen>
+ * @license GPL v3
+ * @version 1.0
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ */
 class PiwikPlugin extends PluginBase {
 	protected $storage = 'DbStorage';
 	static protected $description = 'Adds Piwik tracking codes to Limesurvey pages.';
