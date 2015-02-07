@@ -48,6 +48,7 @@ class PiwikPlugin extends PluginBase {
 		$this->subscribe('beforeSurveyPage');
 		$this->subscribe('beforeSurveySettings');
 		$this->subscribe('afterSurveyComplete');
+		//$this->subscribe('beforeQuestionRender'); 
 	}
 
 	public function afterPluginLoad(){
@@ -63,28 +64,39 @@ class PiwikPlugin extends PluginBase {
 	public function beforeSurveyPage(){
 		//Load tracking code on a survey page, or unload it if necessary.
 		$event = $this->getEvent();
-		$trackThisSurvey=$this->get('piwik_trackThisSurvey', 'Survey', $event->get('surveyId'));
-		//App()->getClientScript()->registerScript('piwikPlugin_trackStatus',"console.log('Tracking Status".$trackThisSurvey."');");
-		if ($trackThisSurvey==NULL) { $trackThisSurvey=$this->get('piwik_trackSurveyPages', null, null, false); } //Use default setting if the survey has not set their preference.
-
-		if ($trackThisSurvey==true){
-			$this->loadPiwikTrackingCode();
-		} elseif ($this->registeredTrackingCode==true){ //Otherwise, Unload the tracking code if it's been loaded.
+		$trackThisSurvey=$this->get(
+			'piwik_trackThisSurvey', 'Survey', $event->get('surveyId'), // Get this survey setting
+			$this->get('piwik_trackSurveyPages', null, null, // If not set the global setting
+				$this->settings['piwik_trackSurveyPages']['default'] // If global is not set get the 'default' setting
+			)
+		);
+		if (!$trackThisSurvey && $this->registeredTrackingCode==true){ //Unload the tracking code if it's been loaded.
 				$this->unloadPiwikTrackingCode();
 		}
+		else
+		{
+			// Update piwik_CustomUrl script
+		}
 	}
-	
+
 	public function afterSurveyComplete(){
         $event = $this->getEvent();
-		$surveyID=$event->get('surveyId');
+		$iSurveyId=$event->get('surveyId');
 		$responseID=$event->get('responseId');
-
-		$js="_paq.push(['trackEvent', 'Survey', 'Survey-$surveyID', 'Submitted']);"; //Allows comparison of submit rates
-		App()->getClientScript()->registerScript('piwikPlugin_Event_Completed',$js,CClientScript::POS_END);		
-		
+		$trackThisSurvey=$this->get(
+			'piwik_trackThisSurvey', 'Survey', $event->get('surveyId'), // Get this survey setting
+			$this->get('piwik_trackSurveyPages', null, null, // If not set the global setting
+				$this->settings['piwik_trackSurveyPages']['default'] // If global is not set get the 'default' setting
+			)
+		);
+		if($trackThisSurvey)
+		{
+		    $js="_paq.push(['trackEvent', 'Survey', 'Survey-$iSurveyId', 'Submitted']);"; //Allows comparison of submit rates
+		    App()->getClientScript()->registerScript('piwikPlugin_Event_Completed',$js,CClientScript::POS_END);
+		    $piwikCustomUrl="survey/{$iSurveyId}/completed";
+		    App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}'])",CClientScript::POS_END);
+		}
 	}
-	
-	
 
 	function unloadPiwikTrackingCode(){
 			App()->getClientScript()->registerScript('piwikPlugin_TrackingCode','',CClientScript::POS_END);
@@ -117,6 +129,59 @@ class PiwikPlugin extends PluginBase {
 			App()->getClientScript()->registerScript('piwikPlugin_TrackingCode',$baseTrackingCode,CClientScript::POS_END);
 			$this->registeredTrackingCode=true; //Prevents loading the code twice through afterPluginLoad() AND beforeSurveyPage()
 		}
+		$sController=App()->getUrlManager()->parseUrl(App()->getRequest());
+		// Construct a custom url
+		if(empty($sController))
+		{
+			$sController=Yii::app()->defaultController;
+		}
+		$aController=explode("/",$sController);
+
+		$iSurveyId=App()->request->getParam('sid');// Strangely don't detect all sid ! TODO : fix it
+		if(!$iSurveyId && $sidPos=array_search('sid',$aController))
+			$iSurveyId=isset($aController[$sidPos+1]) ? $aController[$sidPos+1] : null;
+		if(!$iSurveyId)
+			$iSurveyId=App()->request->getParam('surveyid');
+		if(!$iSurveyId && $sidPos=array_search('surveyid',$aController))
+			$iSurveyId=isset($aController[$sidPos+1]) ? $aController[$sidPos+1] : null;
+
+		$piwikCustomUrl=$aController[0];
+		switch ($piwikCustomUrl)
+		{
+			case 'survey':
+				$piwikCustomUrl.="/".$iSurveyId;
+				if(Yii::app()->request->getParam('newtest'))
+					$piwikCustomUrl.="/new";
+				elseif(Yii::app()->request->getParam('clearall'))
+					$piwikCustomUrl.="/clear";
+				elseif(Yii::app()->request->getParam('loadall'))
+					$piwikCustomUrl.="/load";
+				else
+					$piwikCustomUrl.="/".Yii::app()->request->getParam('move');
+				break;
+			case "optout":
+			case "optin":
+				$piwikCustomUrl="survey/".$iSurveyId."/".$piwikCustomUrl;
+				break;
+			case "statistics_user":
+				$piwikCustomUrl.="/".$iSurveyId;
+				break;
+			case "printanswers" :
+				$piwikCustomUrl.="/".$iSurveyId;
+				break;
+			case "surveys":
+				break;
+			case 'plugins': // T
+			default:
+				$piwikCustomUrl.="/".$iSurveyId;
+			break;
+		}
+
+		// TODO : Option to set language
+
+		// Add a script piwikCustomUrl at begin of body. Just to set the piwikCustomUrl: this var can be updated in another function
+		App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}'])",CClientScript::POS_END);
+
 	}
 
 
