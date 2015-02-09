@@ -44,7 +44,7 @@ class PiwikPlugin extends PluginBase {
             'default'=>'/piwik/'
         ),
         'piwik_siteID'=>array(
-            'type'=>'string',
+            'type'=>'int',
             'label'=>"Piwik SiteId  <br/>(<small><a href='http://piwik.org/faq/general/faq_19212/' target='_new'>What should you put here?</a></small>)",
             'default'=>1
         ),
@@ -68,14 +68,18 @@ class PiwikPlugin extends PluginBase {
         $this->subscribe('beforeSurveyPage');
         $this->subscribe('beforeSurveySettings');
         $this->subscribe('afterSurveyComplete');
-        //$this->subscribe('beforeQuestionRender'); 
+        $this->subscribe('beforeQuestionRender'); 
     }
 
     public function afterPluginLoad(){
         /* Find the active controller with Yii parseUrl */
         /* Remove for admin controller, review for plugins/direct */
-        $sController=Yii::app()->getUrlManager()->parseUrl(Yii::app()->getRequest());
-        if ( $this->registeredTrackingCode!=true && ( $this->get('piwik_trackAdminPages', null, null, false) || substr($sController, 0, 5)!='admin') )
+        $oRequest=$this->pluginManager->getAPI()->getRequest();
+        $sController=Yii::app()->getUrlManager()->parseUrl($oRequest);
+        $sAction=$this->getParam('action');
+        $bAdminPage= substr($sController, 0, 5)=='admin' || $sAction=='previewgroup' || $sAction=='previewquestion';
+
+        if ( !$bAdminPage || $this->get('piwik_trackAdminPages', null, null, false)) 
         { 
             $this->loadPiwikTrackingCode();
         }
@@ -90,7 +94,8 @@ class PiwikPlugin extends PluginBase {
                 $this->settings['piwik_trackSurveyPages']['default'] // If global is not set get the 'default' setting
             )
         );
-        if (!$trackThisSurvey && $this->registeredTrackingCode==true){ //Unload the tracking code if it's been loaded.
+        if (!$trackThisSurvey && $this->registeredTrackingCode)
+        {
                 $this->unloadPiwikTrackingCode();
         }
         else
@@ -132,9 +137,12 @@ class PiwikPlugin extends PluginBase {
         if (substr($piwikURL,-1)<>"/"){ $piwikURL=""; }
 
         //Some basic error checking...
-        if (($piwikID=="")||($piwikURL=="")){
+        if (!$piwikID || !$piwikURL ) // piwikID must be up to 0 and piwikURL can not be in same directory than LimeSurvey
+        {
             App()->getClientScript()->registerScript('piwikPlugin_TrackingCodeError',"console.log('Piwik plugin has not been correctly set up. Please check the settings.');");
-        } else {
+        }
+        else
+        {
             //Generate the code..
             $baseTrackingCode="var _paq = _paq || [];
   _paq.push(['trackPageView']);
@@ -147,37 +155,34 @@ class PiwikPlugin extends PluginBase {
     g.type='text/javascript'; g.async=true; g.defer=true; g.src=u+'piwik.js'; s.parentNode.insertBefore(g,s);
   })();";
             App()->getClientScript()->registerScript('piwikPlugin_TrackingCode',$baseTrackingCode,CClientScript::POS_END);
-            $this->registeredTrackingCode=true; //Prevents loading the code twice through afterPluginLoad() AND beforeSurveyPage()
+            $this->registeredTrackingCode=true; //Not sure really needed but keep track
         }
         $sController=App()->getUrlManager()->parseUrl(App()->getRequest());
+
         // Construct a custom url
         if(empty($sController))
         {
             $sController=Yii::app()->defaultController;
         }
         $aController=explode("/",$sController);
-
-        $iSurveyId=App()->request->getParam('sid');// Strangely don't detect all sid ! TODO : fix it
-        if(!$iSurveyId && $sidPos=array_search('sid',$aController))
-            $iSurveyId=isset($aController[$sidPos+1]) ? $aController[$sidPos+1] : null;
+        
+        $iSurveyId=$this->getParam('sid');
         if(!$iSurveyId)
-            $iSurveyId=App()->request->getParam('surveyid');
-        if(!$iSurveyId && $sidPos=array_search('surveyid',$aController))
-            $iSurveyId=isset($aController[$sidPos+1]) ? $aController[$sidPos+1] : null;
+            $iSurveyId=$this->getParam('surveyid');
 
         $piwikCustomUrl=$aController[0];
         switch ($piwikCustomUrl)
         {
             case 'survey':
                 $piwikCustomUrl.="/".$iSurveyId;
-                if(Yii::app()->request->getParam('newtest') || in_array('newtest',$aController))
+                if($this->getParam('newtest'))
                     $piwikCustomUrl.="/new";
-                elseif(Yii::app()->request->getParam('clearall'))
+                elseif($this->getParam('clearall'))
                     $piwikCustomUrl.="/clear";
-                elseif(Yii::app()->request->getParam('loadall'))
+                elseif($this->getParam('loadall'))
                     $piwikCustomUrl.="/load";
                 else
-                    $piwikCustomUrl.="/".Yii::app()->request->getParam('move');
+                    $piwikCustomUrl.="/".$this->getParam('move','unknow');
                 break;
             case "optout":
             case "optin":
@@ -189,11 +194,13 @@ class PiwikPlugin extends PluginBase {
             case "printanswers" :
                 $piwikCustomUrl.="/".$iSurveyId;
                 break;
-            case "surveys":
+            case "surveys": // Actually : only survey list
                 break;
             case 'plugins': // T
+                $piwikCustomUrl=$sController; // Validate if admin, or direct etc ...
+                break;
             default:
-                $piwikCustomUrl.="/".$iSurveyId;
+                $piwikCustomUrl=$sController; // Reset to controller
             break;
         }
         // TODO : Option to set language
@@ -203,42 +210,94 @@ class PiwikPlugin extends PluginBase {
 
     }
 
-
-
-        public function beforeSurveySettings()
-        {
-            $event = $this->getEvent();
-            $event->set("surveysettings.{$this->id}", array(
-                'name' => get_class($this),
-                'settings' => array(
-                    'piwik_trackThisSurvey' => array(
-                        'type' => 'select',
-                        'options'=>array(0=>'No',
-                            1=>'Yes'),
-                        'default'=>$this->get('piwik_trackSurveyPages', null, null, false), //Default is whatever is set by the superadmin.
-                        'label' => 'Collect web analytics data from respondents',
-                        'current' => $this->get('piwik_trackThisSurvey', 'Survey', $event->get('survey'))
-                    )
+    public function beforeSurveySettings()
+    {
+        $event = $this->getEvent();
+        $event->set("surveysettings.{$this->id}", array(
+            'name' => get_class($this),
+            'settings' => array(
+                'piwik_trackThisSurvey' => array(
+                    'type' => 'select',
+                    'options'=>array(
+                        0=>'No',
+                        1=>'Yes'
+                    ),
+                    'label' => 'Collect web analytics data from respondents',
+                    'current' => $this->get(
+                        'piwik_trackThisSurvey', 'Survey', $event->get('survey'), // Survey
+                        $this->get('piwik_trackSurveyPages', null, null, $this->settings['piwik_trackSurveyPages']['default']) // Global
+                    ),
                 )
-            ));
-        }
+            )
+        ));
+    }
 
-        public function newSurveySettings()
-        { //28/Jan/2015: To be honest,  I have NO idea what this function does. It's not documented anywhere, but after a lot of trial and error I discovered it _IS NECESSARY_ for any per-survey settings to actually hold. Todo: Perhaps this should be integrated into the core?
-            $event = $this->getEvent();
-            foreach ($event->get('settings') as $name => $value)
+    public function newSurveySettings()
+    { //28/Jan/2015: To be honest,  I have NO idea what this function does. It's not documented anywhere, but after a lot of trial and error I discovered it _IS NECESSARY_ for any per-survey settings to actually hold. Todo: Perhaps this should be integrated into the core?
+        $event = $this->getEvent();
+        foreach ($event->get('settings') as $name => $value)
+        {
+            $this->set($name, $value, 'Survey', $event->get('survey'));
+        }
+    }
+
+    public function beforeQuestionRender()
+    {
+        if($this->registeredTrackingCode)
+        {
+            $iSurveyId=$this->event->get('surveyId');
+            $iQid=$this->event->get('qid');
+            $sAction=$this->getParam('action');
+            if($sAction=='previewquestion')
+                $piwikCustomUrl="admin/preview/".$iSurveyId."/question/".$oQuestion->gid;
+
+            $oSurvey=Survey::model()->findByPk($iSurveyId);
+            switch ($oSurvey->format)
             {
-                $this->set($name, $value, 'Survey', $event->get('survey'));
+                case 'A' :
+                    $piwikCustomUrl="survey/".$iSurveyId."/survey";
+                    break;
+                case 'G' :
+                    $oQuestion=Question::model()->find($iQid);
+                    $piwikCustomUrl="survey/".$iSurveyId."/group/".$oQuestion->gid;
+                    break;
+                default :
+                    $oQuestion=Question::model()->find($iQid);
+                    $piwikCustomUrl="survey/".$iSurveyId."/group/".$oQuestion->gid."/question/".$iQid;
             }
+            App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}'])",CClientScript::POS_END);
         }
-
+    }
 
     /* ----------Possible upcoming feature: Piwik Content tracking.---------
     function beforeSurveyPage(){
         //Track the display of specific questions using Piwik's content tracking interface.
         return false;
     }
-*/
+    */
 
-
+    /* Fix some settings when save ir */
+    public function saveSettings($settings)
+    {
+        foreach ($settings as $setting=>$aSetting)
+        {
+            if(isset($settings['piwik_piwikURL']) && !empty($settings['piwik_piwikURL']) && substr($settings['piwik_piwikURL'], -1)!="/")
+            {
+                $settings['piwik_piwikURL'].="/";
+            }
+        }
+        parent::saveSettings($settings);
+    }
+    
+    private function getParam($sParam,$default=null)
+    {
+        $oRequest=$this->pluginManager->getAPI()->getRequest();
+        if($oRequest->getParam($sParam))
+            return $oRequest->getParam($sParam);
+        $sController=Yii::app()->getUrlManager()->parseUrl($oRequest);
+        $aController=explode('/',$sController);
+        if($iPosition=array_search($sParam,$aController))
+            return isset($aController[$iPosition+1]) ? $aController[$iPosition+1] : $default;
+        return $default;
+    }
 }
