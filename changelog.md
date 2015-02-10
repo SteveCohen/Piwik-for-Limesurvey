@@ -15,5 +15,6 @@
 
 10 Feb 2015
  - Rewrite uninformative Limesurvey URLs to provide additional information within Piwik. e.g. groupID/questionID now appear in URLs. (Note this means the actual URL does not match that in Piwik, but they are nearly the same) - thanks @Shnoulle
+ - Added event tracking (use of back/forward/save/clear buttons) and content tracking (impression and interaction with questions)
  
 

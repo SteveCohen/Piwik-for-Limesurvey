@@ -2,7 +2,13 @@
 A Plugin for limesurvey that adds the Piwik tracking code, enabling you to track your survey users/respondents. This requires a working [Piwik](http://www.piwik.org) installation.
 
 #Installation 
-1. Copy to the Plugin directory.
+1. Unzip and copy the 'PiwikPlugin' directory into  your Limesurvey Plugin directory
+ - Or download using Git like this:
+ ```
+ git clone https://github.com/SteveCohen/Piwik-for-Limesurvey.git PiwikPlugin
+ ```
+
+ 
 2. Use Limesurvey's 'Plugin Manager' to specify the Piwik URL and SiteID
 3. Test that it's working for you. 
 
@@ -21,7 +27,7 @@ Please do submit an issue if you have anything to add: Feedback, commits and cri
 		- [ ] Survey starts (hits to welcome page)
 		- [ ] Survey save-and-exit use (creating a username?)
 		- [ ] Survey resumptions (after save and exit)
-		- [ ] Use of 'back' button?
+		- [x] Use of 'next', 'back' button, 'save' and 'clear' buttons
 		- [ ] Deletions/corrections in open-ended texts? Time spent in open ended text fields?
 - [ ] Consider Piwik content tracking to track which questions have actually been displayed to respondents
 - [ ] Consider some form of plugin update notice mechanism
