@@ -131,7 +131,7 @@ class PiwikPlugin extends PluginBase {
         else
         {
             // Update piwik_CustomUrl script
-			$this->loadEventTracking_moveButtons(); //Track use of prev/back/save/clear buttons in a survey.
+            $this->loadEventTracking_moveButtons(); //Track use of prev/back/save/clear buttons in a survey.
         }
     }
 
@@ -148,13 +148,13 @@ class PiwikPlugin extends PluginBase {
         $eventTracking=$this->get('piwik_trackEvents',null,null,false);
         if($trackThisSurvey)
         {
-	        if ($eventTracking){
-		        $eventCategory=$this->get('piwik_trackEventsCategory',null,null,false);
+            if ($eventTracking){
+                $eventCategory=$this->get('piwik_trackEventsCategory',null,null,false);
                 $js="_paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Completed']);"; //Event tracking of completed surveys.
-				App()->getClientScript()->registerScript('piwikPlugin_Event_Completed',$js,CClientScript::POS_END);
-	        }
-	        
-	        
+                App()->getClientScript()->registerScript('piwikPlugin_Event_Completed',$js,CClientScript::POS_END);
+            }
+            
+            
             $piwikCustomUrl="survey/{$iSurveyId}/completed";
             App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}'])",CClientScript::POS_END);
         }
@@ -245,55 +245,55 @@ class PiwikPlugin extends PluginBase {
 
         // Add a script piwikCustomUrl at begin of body. Just to set the piwikCustomUrl: this var can be updated in another function
         App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}'])",CClientScript::POS_END);
-		$this->loadContentTracking_questionanswers();
+        $this->loadContentTracking_questionanswers();
     }
 
-	function loadEventTracking_moveButtons(){
-		//Adds event tracking code to the #moveprevbtn and #movenextbtn.  
-		//see https://developer.piwik.org/api-reference/events
-		//This assumes the IDs in application/helpers/frontend_helper.php will remain constant.
-		
+    function loadEventTracking_moveButtons(){
+        //Adds event tracking code to the #moveprevbtn and #movenextbtn.  
+        //see https://developer.piwik.org/api-reference/events
+        //This assumes the IDs in application/helpers/frontend_helper.php will remain constant.
+        
         if ($eventTracking){
-	        $eventCategory=$this->get('piwik_trackEventsCategory',null,null,false);
+            $eventCategory=$this->get('piwik_trackEventsCategory',null,null,false);
             $js=
 "$('#clearall').on('click',function(){ _paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Button: Clear responses']); });
 $('#saveallbtn').on('click',function(){ _paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Button: Save responses']); });
 $('#moveprevbtn').on('click',function(){ _paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Button: Previous page']); });
 $('#movenextbtn').on('click',function(){_paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Button: Next page']);});"; //TOODO: add the page it was used on. 
-			//Do not add an event to'#movesubmitbtn': this is done in the afterSurveyComplete event once all required answers have been answered and submission is confirmed.
-			App()->getClientScript()->registerScript('piwikPlugin_Event_ButtonUse',$js,CClientScript::POS_END);
-		}
-	}
+            //Do not add an event to'#movesubmitbtn': this is done in the afterSurveyComplete event once all required answers have been answered and submission is confirmed.
+            App()->getClientScript()->registerScript('piwikPlugin_Event_ButtonUse',$js,CClientScript::POS_END);
+        }
+    }
 
-	function loadContentTracking_questionanswers(){
-		//Tags question input elements as content, to track interactions with. 
-		//See http://developer.piwik.org/guides/content-tracking
-		$trackContent=$this->get('piwik_trackContent',null,null,false);
-		if ($trackContent){
-	        $iSurveyId=$this->getParam('sid');
-			if(!$iSurveyId)
-            	$iSurveyId=$this->getParam('surveyid');
-            	
-			//Tags all inputs as content, to track content interactions
-			$js="_paq.push(['trackPageView']);
-	_paq.push(['trackVisibleContentImpressions']);"; //enable tracking
-			$js.="
-	//Define the content blocks
-	$('.question-wrapper').each(function(){
-		$(this).attr('data-track-content',''); 
-		$(this).attr('data-content-name','Survey-$iSurveyId');
-	});
-	//Add the item pieces
- 	$('.question-wrapper').find('input').each
-	(function()
-		{ 
-		itemName=$(this).attr('name').toLowerCase();
-		$(this).attr('data-content-piece',itemName);
-		}
-	);"; 		
-        	App()->getClientScript()->registerScript('piwikPlugin_InputContentTracking',$js,CClientScript::POS_END);			
-		}
-	}
+    function loadContentTracking_questionanswers(){
+        //Tags question input elements as content, to track interactions with. 
+        //See http://developer.piwik.org/guides/content-tracking
+        $trackContent=$this->get('piwik_trackContent',null,null,false);
+        if ($trackContent){
+            $iSurveyId=$this->getParam('sid');
+            if(!$iSurveyId)
+                $iSurveyId=$this->getParam('surveyid');
+                
+            //Tags all inputs as content, to track content interactions
+            $js="_paq.push(['trackPageView']);
+    _paq.push(['trackVisibleContentImpressions']);"; //enable tracking
+            $js.="
+    //Define the content blocks
+    $('.question-wrapper').each(function(){
+        $(this).attr('data-track-content',''); 
+        $(this).attr('data-content-name','Survey-$iSurveyId');
+    });
+    //Add the item pieces
+    $('.question-wrapper').find('input').each
+    (function()
+        { 
+        itemName=$(this).attr('name').toLowerCase();
+        $(this).attr('data-content-piece',itemName);
+        }
+    );";        
+            App()->getClientScript()->registerScript('piwikPlugin_InputContentTracking',$js,CClientScript::POS_END);            
+        }
+    }
 
     public function beforeSurveySettings()
     {
