@@ -28,3 +28,6 @@ Please do submit an issue if you have anything to add: Feedback, commits and cri
 - [ ] Consider displaying selected Piwik stats within Limesurvey (Piwik reporting api: http://developer.piwik.org/api-reference/reporting-api)
 	- [ ] Determine which analytics to show. Probably items related to design and fieldwork e.g. aggregations of type of device (mobile/desktop), particularly long questions, breakoffs, respondent locations.
 	- [ ] Use segmentation to ensure we get just the data from survey participants for this survey, not the entire website, using the (segmentation API)[http://developer.piwik.org/api-reference/reporting-api-segmentation]
+- [ ] Use Piwik PHP tracking to avoid use of cookies. See (Piwik Docs)[http://piwik.org/docs/tracking-api/#use-case-tracking-data-using-the-php-client]
+
+

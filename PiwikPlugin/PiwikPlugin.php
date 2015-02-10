@@ -182,7 +182,7 @@ class PiwikPlugin extends PluginBase {
                 elseif($this->getParam('loadall'))
                     $piwikCustomUrl.="/load";
                 else
-                    $piwikCustomUrl.="/".$this->getParam('move','unknow');
+                    $piwikCustomUrl.="/".$this->getParam('move','unknown');
                 break;
             case "optout":
             case "optin":
@@ -207,7 +207,6 @@ class PiwikPlugin extends PluginBase {
 
         // Add a script piwikCustomUrl at begin of body. Just to set the piwikCustomUrl: this var can be updated in another function
         App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}'])",CClientScript::POS_END);
-
     }
 
     public function beforeSurveySettings()
@@ -258,11 +257,11 @@ class PiwikPlugin extends PluginBase {
                     $piwikCustomUrl="survey/".$iSurveyId."/survey";
                     break;
                 case 'G' :
-                    $oQuestion=Question::model()->find($iQid);
+                    $oQuestion = Question::model()->find("qid=:qid",array('qid'=>$iQid));
                     $piwikCustomUrl="survey/".$iSurveyId."/group/".$oQuestion->gid;
                     break;
                 default :
-                    $oQuestion=Question::model()->find($iQid);
+                    $oQuestion = Question::model()->find("qid=:qid",array('qid'=>$iQid));
                     $piwikCustomUrl="survey/".$iSurveyId."/group/".$oQuestion->gid."/question/".$iQid;
             }
             App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}'])",CClientScript::POS_END);
