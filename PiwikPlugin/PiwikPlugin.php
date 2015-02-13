@@ -39,7 +39,7 @@ class PiwikPlugin extends PluginBase {
         'piwik_trackSurveyPages' => array(
             'type'=>'select',
             'options'=>array(0=>'No',1=>'Yes'),
-             'label'=>'Track Survey pages by default <br><small>(Survey admins can override this)</small>',
+            'label'=>'Track Survey pages by default <br><small>(Survey admins can override this)</small>',
             'default'=> 1
         ),
         'piwik_piwikURL'=>array(
@@ -61,8 +61,13 @@ class PiwikPlugin extends PluginBase {
         ),
 */
 
-        
         //---------- Event and Content Tracking settings----------
+        'piwik_rewriteURLs'=>array(
+            'type'=>'select',
+            'options'=>array(0=>'No',1=>'Yes'),
+            'label'=>'Rewrite Survey page URLs to store more information in Piwik',
+            'default'=>1
+        ),
         'piwik_title_EventAndContentTracking'=>array(
             'type'=>'info',
             'content'=>'<legend><small>Content and Event tracking</small></legend>'
@@ -70,22 +75,20 @@ class PiwikPlugin extends PluginBase {
         'piwik_trackContent' => array(
             'type'=>'select',
             'options'=>array(0=>'No',1=>'Yes'),
-             'label'=>'Track respondents\' interactions with answer options<br/><small>Uses Piwik <i>content tracking</i> on answer options</small>',
+            'label'=>'Track respondents\' interactions with answer options<br/><small>Uses Piwik <i>content tracking</i> on answer options</small>',
             'default'=> 1
-        ),        
+        ),
         'piwik_trackEvents' => array(
             'type'=>'select',
             'options'=>array(0=>'No',1=>'Yes'),
-             'label'=>'Track important survey events<br/><small>Uses Piwik <i>event tracking</i> on selected survey events</small>',
+            'label'=>'Track important survey events<br/><small>Uses Piwik <i>event tracking</i> on selected survey events</small>',
             'default'=> 1
         ),
         'piwik_trackEventsCategory' => array(
             'type'=>'string',
-             'label'=>'Piwik Event category to use for survey events',
+            'label'=>'Piwik Event category to use for survey events',
             'default'=> 'Survey'
         ),
-        
-        
     );
 
     private $registeredTrackingCode;
@@ -109,8 +112,8 @@ class PiwikPlugin extends PluginBase {
         $sAction=$this->getParam('action');
         $bAdminPage= substr($sController, 0, 5)=='admin' || $sAction=='previewgroup' || $sAction=='previewquestion';
 
-        if ( !$bAdminPage || $this->get('piwik_trackAdminPages', null, null, false)) 
-        { 
+        if ( !$bAdminPage || $this->get('piwik_trackAdminPages', null, null, false))
+        {
             $this->loadPiwikTrackingCode();
         }
     }
@@ -126,7 +129,7 @@ class PiwikPlugin extends PluginBase {
         );
         if (!$trackThisSurvey && $this->registeredTrackingCode)
         {
-                $this->unloadPiwikTrackingCode();
+            $this->unloadPiwikTrackingCode();
         }
         else
         {
@@ -153,19 +156,26 @@ class PiwikPlugin extends PluginBase {
                 $js="_paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Completed']);"; //Event tracking of completed surveys.
                 App()->getClientScript()->registerScript('piwikPlugin_Event_Completed',$js,CClientScript::POS_END);
             }
-            
-            
             $piwikCustomUrl="survey/{$iSurveyId}/completed";
-            App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}'])",CClientScript::POS_END);
+            $this->setCustomURL($piwikCustomUrl);
         }
     }
 
     function unloadPiwikTrackingCode(){
-            App()->getClientScript()->registerScript('piwikPlugin_TrackingCode','',CClientScript::POS_END);
-            $this->registeredTrackingCode=false; //false
-            //Todo: Unload event tracking, too. Low priority.
+        App()->getClientScript()->registerScript('piwikPlugin_TrackingCode','',CClientScript::POS_END);
+        $this->registeredTrackingCode=false; //false
+        //Todo: Unload event tracking, too. Low priority.
     }
 
+
+    function setCustomURL($piwikCustomUrl){
+        App()->getClientScript()->registerScript('piwikCustomUrlMessage',"console.log('url: $piwikCustomUrl');",CClientScript::POS_END);
+        if ($this->get('piwik_rewriteURLs', null, null, false)){    
+            App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}']);",CClientScript::POS_END);
+        } else {
+            App()->getClientScript()->registerScript('piwikCustomUrl',"console.log('Would have stored to custom url as $piwikCustomUrl');",CClientScript::POS_END);
+        }
+    }
 
     function loadPiwikTrackingCode(){
         $piwikID=trim($this->get('piwik_siteID', null, null, false));
@@ -203,7 +213,7 @@ class PiwikPlugin extends PluginBase {
             $sController=Yii::app()->defaultController;
         }
         $aController=explode("/",$sController);
-        
+
         $iSurveyId=$this->getParam('sid');
         if(!$iSurveyId)
             $iSurveyId=$this->getParam('surveyid');
@@ -211,118 +221,126 @@ class PiwikPlugin extends PluginBase {
         $piwikCustomUrl=$aController[0];
         switch ($piwikCustomUrl)
         {
-            case 'survey':
-                $piwikCustomUrl.="/".$iSurveyId;
-                if($this->getParam('newtest'))
-                    $piwikCustomUrl.="/new";
-                elseif($this->getParam('clearall'))
-                    $piwikCustomUrl.="/clear";
-                elseif($this->getParam('loadall'))
-                    $piwikCustomUrl.="/load";
-                else
-                    $piwikCustomUrl.="/".$this->getParam('move','unknown');
-                break;
-            case "optout":
-            case "optin":
-                $piwikCustomUrl="survey/".$iSurveyId."/".$piwikCustomUrl;
-                break;
-            case "statistics_user":
-                $piwikCustomUrl.="/".$iSurveyId;
-                break;
-            case "printanswers" :
-                $piwikCustomUrl.="/".$iSurveyId;
-                break;
-            case "surveys": // Actually : only survey list
-                break;
-            case 'plugins': // T
-                $piwikCustomUrl=$sController; // Validate if admin, or direct etc ...
-                break;
-            default:
-                $piwikCustomUrl=$sController; // Reset to controller
+        case 'survey':
+            $piwikCustomUrl.="/".$iSurveyId;
+            if($this->getParam('newtest'))
+                $piwikCustomUrl.="/new";
+            elseif($this->getParam('clearall')){
+                $piwikCustomUrl.="/clear"; 
+                $this->trackEventUsingJS('Exit and Clear responses');
+            }
+            elseif($this->getParam('loadall')){
+                $piwikCustomUrl.="/load"; 
+                $this->trackEventUsingJS('Load previous responses (Login page)');
+            }
+            else
+                $piwikCustomUrl.="/".$this->getParam('move','unknown');
+            break;
+        case "optout":
+        case "optin":
+            $piwikCustomUrl="survey/".$iSurveyId."/".$piwikCustomUrl; //Todo: Cull URL
+            break;
+        case "statistics_user":
+            $piwikCustomUrl.="/".$iSurveyId;
+            break;
+        case "printanswers" :
+            $piwikCustomUrl.="/".$iSurveyId;
+            break;
+        case "surveys": // Actually : only survey list
+            break;
+        case 'plugins': // T
+            $piwikCustomUrl=$sController; // Validate if admin, or direct etc ...
+            break;
+        default:
+            $piwikCustomUrl=$sController; // Reset to controller
             break;
         }
         // TODO : Option to set language
 
         // Add a script piwikCustomUrl at begin of body. Just to set the piwikCustomUrl: this var can be updated in another function
-        App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}'])",CClientScript::POS_END);
+
+        $this->setCustomURL($piwikCustomUrl);
         $this->loadContentTracking_questionanswers();
     }
 
     function loadEventTracking_moveButtons(){
-        //Adds event tracking code to the #moveprevbtn and #movenextbtn.  
+        //Adds event tracking code to the #moveprevbtn and #movenextbtn.
         //see https://developer.piwik.org/api-reference/events
         //This assumes the IDs in application/helpers/frontend_helper.php will remain constant.
-        
+
         if ($eventTracking){
             $eventCategory=$this->get('piwik_trackEventsCategory',null,null,false);
             $js=
-"$('#clearall').on('click',function(){ _paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Button: Clear responses']); });
+                "$('#clearall').on('click',function(){ _paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Button: Clear responses']); });
 $('#saveallbtn').on('click',function(){ _paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Button: Save responses']); });
 $('#moveprevbtn').on('click',function(){ _paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Button: Previous page']); });
-$('#movenextbtn').on('click',function(){_paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Button: Next page']);});"; //TOODO: add the page it was used on. 
+$('#movenextbtn').on('click',function(){_paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', 'Button: Next page']);});"; //TOODO: add the page it was used on.
             //Do not add an event to'#movesubmitbtn': this is done in the afterSurveyComplete event once all required answers have been answered and submission is confirmed.
             App()->getClientScript()->registerScript('piwikPlugin_Event_ButtonUse',$js,CClientScript::POS_END);
         }
     }
 
     function loadContentTracking_questionanswers(){
-        //Tags question input elements as content, to track interactions with. 
+        //Tags question input elements as content, to track interactions with.
         //See http://developer.piwik.org/guides/content-tracking
         $trackContent=$this->get('piwik_trackContent',null,null,false);
         if ($trackContent){
             $iSurveyId=$this->getParam('sid');
             if(!$iSurveyId)
                 $iSurveyId=$this->getParam('surveyid');
-                
+
             //Tags all inputs as content, to track content interactions
             $js="_paq.push(['trackPageView']);
     _paq.push(['trackVisibleContentImpressions']);"; //enable tracking
             $js.="
     //Define the content blocks
     $('.question-wrapper').each(function(){
-        $(this).attr('data-track-content',''); 
+        $(this).attr('data-track-content','');
         $(this).attr('data-content-name','Survey-$iSurveyId');
     });
     //Add the item pieces
     $('.question-wrapper').find('input').each
     (function()
-        { 
+        {
         itemName=$(this).attr('name').toLowerCase();
         $(this).attr('data-content-piece',itemName);
         }
-    );";        
-            App()->getClientScript()->registerScript('piwikPlugin_InputContentTracking',$js,CClientScript::POS_END);            
+    );";
+            App()->getClientScript()->registerScript('piwikPlugin_InputContentTracking',$js,CClientScript::POS_END);
         }
     }
+
+
+
 
     public function beforeSurveySettings()
     {
         $event = $this->getEvent();
         $event->set("surveysettings.{$this->id}", array(
-            'name' => get_class($this),
-            'settings' => array(
-                'piwik_Title_TrackingSettings'=>array(
-                    'type'=>'info',
-                    'content'=>'<legend><small>Tracking settings</small></legend>'
-                ),
-                'piwik_trackThisSurvey' => array(
-                    'type' => 'select',
-                    'options'=>array(
-                        0=>'No',
-                        1=>'Yes'
+                'name' => get_class($this),
+                'settings' => array(
+                    'piwik_Title_TrackingSettings'=>array(
+                        'type'=>'info',
+                        'content'=>'<legend><small>Tracking settings</small></legend>'
                     ),
-                    'label' => 'Collect web analytics data from respondents',
-                    'current' => $this->get(
-                        'piwik_trackThisSurvey', 'Survey', $event->get('survey'), // Survey
-                        $this->get('piwik_trackSurveyPages', null, null, $this->settings['piwik_trackSurveyPages']['default']) // Global
-                    ),
+                    'piwik_trackThisSurvey' => array(
+                        'type' => 'select',
+                        'options'=>array(
+                            0=>'No',
+                            1=>'Yes'
+                        ),
+                        'label' => 'Collect web analytics data from respondents',
+                        'current' => $this->get(
+                            'piwik_trackThisSurvey', 'Survey', $event->get('survey'), // Survey
+                            $this->get('piwik_trackSurveyPages', null, null, $this->settings['piwik_trackSurveyPages']['default']) // Global
+                        ),
+                    )
                 )
-            )
-        ));
+            ));
     }
 
     public function newSurveySettings()
-    { //28/Jan/2015: To be honest,  I have NO idea what this function does. It's not documented anywhere, but after a lot of trial and error I discovered it _IS NECESSARY_ for any per-survey settings to actually hold. Todo: Perhaps this should be integrated into the core?
+        { //28/Jan/2015: To be honest,  I have NO idea what this function does. It's not documented anywhere, but after a lot of trial and error I discovered it _IS NECESSARY_ for any per-survey settings to actually hold. Todo: Perhaps this should be integrated into the core?
         $event = $this->getEvent();
         foreach ($event->get('settings') as $name => $value)
         {
@@ -343,18 +361,19 @@ $('#movenextbtn').on('click',function(){_paq.push(['trackEvent', '$eventCategory
             $oSurvey=Survey::model()->findByPk($iSurveyId);
             switch ($oSurvey->format)
             {
-                case 'A' :
-                    $piwikCustomUrl="survey/".$iSurveyId."/survey";
-                    break;
-                case 'G' :
-                    $oQuestion = Question::model()->find("qid=:qid",array('qid'=>$iQid));
-                    $piwikCustomUrl="survey/".$iSurveyId."/group/".$oQuestion->gid;
-                    break;
-                default :
-                    $oQuestion = Question::model()->find("qid=:qid",array('qid'=>$iQid));
-                    $piwikCustomUrl="survey/".$iSurveyId."/group/".$oQuestion->gid."/question/".$iQid;
+            case 'A' :
+                $piwikCustomUrl="survey/".$iSurveyId."/survey"; //Todo: Cull URL
+                break;
+            case 'G' :
+                $oQuestion = Question::model()->find("qid=:qid",array('qid'=>$iQid));
+                $piwikCustomUrl="survey/".$iSurveyId."/group/".$oQuestion->gid; //Todo: Cull URL
+                break;
+            default :
+                $oQuestion = Question::model()->find("qid=:qid",array('qid'=>$iQid));
+                $piwikCustomUrl="survey/".$iSurveyId."/group/".$oQuestion->gid."/question/".$iQid; //Todo: Cull URL
             }
-            App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}'])",CClientScript::POS_END);
+            $this->setCustomURL($piwikCustomUrl);
+            //App()->getClientScript()->registerScript('piwikCustomUrl',"_paq.push(['setCustomUrl', '{$piwikCustomUrl}'])",CClientScript::POS_END);
         }
     }
 
@@ -377,7 +396,7 @@ $('#movenextbtn').on('click',function(){_paq.push(['trackEvent', '$eventCategory
         }
         parent::saveSettings($settings);
     }
-    
+
     private function getParam($sParam,$default=null)
     {
         $oRequest=$this->pluginManager->getAPI()->getRequest();
@@ -389,4 +408,26 @@ $('#movenextbtn').on('click',function(){_paq.push(['trackEvent', '$eventCategory
             return isset($aController[$iPosition+1]) ? $aController[$iPosition+1] : $default;
         return $default;
     }
+    
+    function trackEventUsingPHP(){
+        //Tracks an event using PHP
+        return false;
+    }
+    
+    function trackEventUsingJS($eventName,$eventValue=null){
+        //Tracks an event immediately, by adding the JS to the page. This then causes the respondent to request piwik.php and track the event.
+        //Contrasts to the trackeventUsingphp, which does not involve the respondent at all but does it directly.
+
+        $iSurveyId=$this->getParam('sid');
+        if(!$iSurveyId)
+            $iSurveyId=$this->getParam('surveyid');
+        $eventCategory=$this->get('piwik_trackEventsCategory',null,null,false);
+        $scriptName="piwikEventTracking_".$eventName.$eventValue.(string)rand(1,20000); //add a random number to ensure multiple identical events are tracked.
+        $js="_paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', '$eventName','$eventValue']);";
+        App()->getClientScript()->registerScript($scriptName,$js,CClientScript::POS_END);       
+        return $scriptName; //return the name of the script in case we want to edit later.      
+    }
+
+
+
 }
