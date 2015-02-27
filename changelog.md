@@ -26,4 +26,9 @@
  - Custom URL set initially in the JS piwikForLimeSurvey array, and later read into the _paq (also using Javascript) - per solution suggested in [issue #7](https://github.com/SteveCohen/Piwik-for-Limesurvey/issues/7)
  - Fixed bug where URLs were tracked twice per hit
  
- 
+ 28 Feb 2015
+ - Reorder code to group similar functions
+ - Use _paq instead of custom JS variables as discussed further in [issue #7](https://github.com/SteveCohen/Piwik-for-Limesurvey/issues/7)
+ - Added documentation to readme
+ - Started newDirectRequest page/placeholder to embed stats and help inside LimeSurvey
+ - Hid 'piwik_saveResponseIDtoPiwik' settings until it actually works
