@@ -21,8 +21,8 @@ Please do submit an issue if you have anything to add: Feedback, commits and cri
 - [x] Allow superuser to choose whether to track admin pages
 - [x] Enable survey admins to turn on/off tracking per survey
 - [x] Rewrites URLs to store as much data as possible in Piwik
-	- [ ] Rationalise the format of custom URLs
-	- [ ] Allow (super)users to choose the format stored in Piwik. e.g. SurveyID/GroupID/QuestionID & others.
+	- [x] Rationalise the format of custom URLs
+	- [x] Allow (super)users to choose the format stored in Piwik. e.g. SurveyID/GroupID/QuestionID & others.
 - [ ] Allow survey admins to change the Piwik URL and SiteID used to track their survey.
 - [x] Use Piwik event tracking to collect survey paradata and other events. (Similar to the AuditLog plugin but for data collection) e.g:
 	- Focus first on those that LimeSurvey provides plugin events for:
@@ -67,7 +67,7 @@ The Global option 'Track Survey pages by default' specifies the default setting 
 This can be overridden per survey (General Settings -> 'Plugin' tab -> 'Collect web analytics data from respondents'), allowing you to enable or disable tracking on individual surveys.
 
 ##URL rewriting
-Options: Enabled / Disabled
+Options: Disabled / Unreal link / Public link / Admin link
 Scope: Global (turned on/off for ALL surveys)
 
 This rewrites URLs to make sure the maximum amount of information is tracked.
@@ -76,18 +76,7 @@ Limesurvey doesn't always use the most informative URLs. For example, if you loo
 ``` 
 /index.php/survey/index
 ```
-This doesn't include any details about the question or group that has been displayed. This feature rewrites the URLs to add information to the URL, as follows:
-
-| Type of Limesurvey Page 	| Limesurvey URL | Piwik Re-written URL |
-|--------------------------:|----------------|-----------|
-| Survey Welcome | /index.php/*SurveyID*/lang-en | survey/*SurveyID*/new			|
-| Survey Page (Group-by-group) | /index.php/survey/index	| survey/*SurveyID*/group/<GroupID> | 
-| Survey Page (Question-by-Question) | /index.php/survey/index	| survey/*SurveyID*/group/<GroupID>/question/<QuestionID> | 
-| Survey Completion | /index.php/survey/index	| survey/*SurveyID*/completed	|
-| Load previous responses |  /index.php/survey/index | survey/*SurveyID*/load | 
-| Clear answers | /index.php/survey/index | survey/*SurveyID*/clear | 
-
-The side-effect is that clicking on the url inside the Piwik interface will take you to a nonexistent page (i.e. give you a 404 error.)
+This feature rewrites the URLs to add information to the URL, and goes to an existing page according to parameters.
 
 
 ## Content Tracking: Track respondents' interactions with answer options

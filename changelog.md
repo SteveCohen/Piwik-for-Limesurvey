@@ -32,3 +32,9 @@
  - Added documentation to readme
  - Started newDirectRequest page/placeholder to embed stats and help inside LimeSurvey
  - Hid 'piwik_saveResponseIDtoPiwik' settings until it actually works
+ 
+ 10 march 2015
+ - New setting for rewriting url : rewrite to existing public page or existing admin pages
+ - Fix event : for all template and set only for needed input
+ - Add lang at end of the url
+
