@@ -34,7 +34,7 @@ class PiwikPlugin extends PluginBase {
 			'type'=>'select',
 			'options'=>array(0=>'No',1=>'Yes'),
 			'label'=>'Track Admin pages',
-			'default'=> 1
+			'default'=> 0
 		),
 		'piwik_trackSurveyPages' => array(
 			'type'=>'select',
@@ -64,9 +64,14 @@ class PiwikPlugin extends PluginBase {
 		//---------- Event and Content Tracking settings----------
 		'piwik_rewriteURLs'=>array(
 			'type'=>'select',
-			'options'=>array(0=>'No',1=>'Yes'),
-			'label'=>'Rewrite URLs to store more information in Piwik',
-			'default'=>1
+            'options'=>array(
+                0=>'No',
+                'unreal'=>'Yes, to a false URL',
+                'admin'=>'Yes, to corresponding admin page',
+                'public'=>'Yes, to public page with more information (start of survey).',
+                ),
+            'label'=>'Rewrite Survey page URLs to store more information in Piwik, only for public page',
+            'default'=>'public'
 		),
 		'piwik_title_EventAndContentTracking'=>array(
 			'type'=>'info',
@@ -98,9 +103,16 @@ class PiwikPlugin extends PluginBase {
 		)
 */
 	);
-
+	/**
+	* track if javascript is done
+	* @var boolean 
+	*/
 	private $registeredTrackingCode;
-
+	/**
+	* The custom parameters for the final url
+	* @var array : all params needed
+	*/
+	private $aPiwikCustomParams;
 	public function __construct(PluginManager $manager, $id)
 	{
 		parent::__construct($manager, $id);
@@ -155,30 +167,36 @@ class PiwikPlugin extends PluginBase {
 
 	public function beforeQuestionRender()
 	{
-		if($this->registeredTrackingCode)
+		/**
+		 * Keep if it's already done for this page
+		 * @boolean
+		 */
+		static $done;
+		if($this->registeredTrackingCode && !$done)
 		{
 			$iSurveyId=$this->event->get('surveyId');
 			$iQid=$this->event->get('qid');
-			$sAction=$this->getParam('action');
-			if($sAction=='previewquestion')
-				$oQuestion = Question::model()->find("qid=:qid",array('qid'=>$iQid));
-			$piwikCustomUrl="admin/preview/".$iSurveyId."/question/".$oQuestion->gid;
 
+			$aCustomUrl=array();
+			if($this->getParam('action')=='previewgroup' || $this->getParam('action')=='previewquestion')
+				$aCustomUrl['action']=$this->getParam('action');// Preview
 			$oSurvey=Survey::model()->findByPk($iSurveyId);
 			switch ($oSurvey->format)
 			{
-			case 'A' :
-				$piwikCustomUrl="survey/".$iSurveyId."/survey"; //Todo: Cull URL
-				break;
-			case 'G' :
-				$oQuestion = Question::model()->find("qid=:qid",array('qid'=>$iQid));
-				$piwikCustomUrl="survey/".$iSurveyId."/group/".$oQuestion->gid; //Todo: Cull URL
-				break;
-			default :
-				$oQuestion = Question::model()->find("qid=:qid",array('qid'=>$iQid));
-				$piwikCustomUrl="survey/".$iSurveyId."/group/".$oQuestion->gid."/question/".$iQid; //Todo: Cull URL
+				case 'A' :
+					$aCustomUrl=array();
+					break;
+				case 'G' :
+					$oQuestion = Question::model()->find("qid=:qid",array('qid'=>$iQid));// Not needed after https://github.com/LimeSurvey/LimeSurvey/commit/f01ccfb2c90f99878afa50b70da039fd81e8aa1a
+					$aCustomUrl['gid']=$oQuestion->gid;
+					break;
+				default :
+					$oQuestion = Question::model()->find("qid=:qid",array('qid'=>$iQid));
+					$aCustomUrl['gid']=$oQuestion->gid;
+					$aCustomUrl['qid']=$iQid;
 			}
-			$this->setCustomURL($piwikCustomUrl);
+			$this->setCustomURL($aCustomUrl);
+			$done =true;
 		}
 	}
 
@@ -188,7 +206,7 @@ class PiwikPlugin extends PluginBase {
 		$oRequest=$this->pluginManager->getAPI()->getRequest();
 		$sController=Yii::app()->getUrlManager()->parseUrl($oRequest);
 		$sAction=$this->getParam('action');
-		$bAdminPage= substr($sController, 0, 5)=='admin' || $sAction=='previewgroup' || $sAction=='previewquestion';
+		$bAdminPage= substr($sController, 0, 5)=='admin' || $sAction=='previewgroup' || $sAction=='previewquestion';// What for plugins ?
 
 		if ( !$bAdminPage || $this->get('piwik_trackAdminPages', null, null, false))
 		{
@@ -254,8 +272,7 @@ class PiwikPlugin extends PluginBase {
 				//App()->getClientScript()->registerScript('piwik_readresponseID',"_paq.push([ function() { alert(this.getCustomVariable(1,'visit')); }]);",CClientScript::POS_END);
 
 			}
-			$piwikCustomUrl="survey/{$iSurveyId}/completed";
-			$this->setCustomURL($piwikCustomUrl);
+			$this->setCustomURL(array("base"=>'survey','sid'=>$iSurveyId,'event'=>'completed'));
 		}
 	}
 
@@ -264,7 +281,7 @@ class PiwikPlugin extends PluginBase {
 		$oRequest=$this->pluginManager->getAPI()->getRequest();
 		if($oRequest->getParam($sParam))
 			return $oRequest->getParam($sParam);
-		$sController=Yii::app()->getUrlManager()->parseUrl($oRequest);
+		$sController=Yii::app()->getUrlManager()->parseUrl($oRequest); // This don't set the param according to route always : TODO : fix it (maybe neede $routes ?)
 		$aController=explode('/',$sController);
 		if($iPosition=array_search($sParam,$aController))
 			return isset($aController[$iPosition+1]) ? $aController[$iPosition+1] : $default;
@@ -281,15 +298,17 @@ class PiwikPlugin extends PluginBase {
 
 		//Some basic error checking...
 		if (!$piwikID || !$piwikURL ) // piwikID must be up to 0 and piwikURL can not be in same directory than LimeSurvey
-			{
+		{
 			App()->getClientScript()->registerScript('piwikPlugin_TrackingCodeError',"console.log('Piwik plugin has not been correctly set up. Please check the settings.');");
 		}
 		else
 		{
 			//Generate the tracking code.
-			$baseTrackingCode='_paq = _paq || [];'; //PAQ could be set before this from other functions like setCustomURL; if it's not, create it.
+            $baseTrackingCode ="var _paq = _paq || [];\n";
+			App()->getClientScript()->registerScript('baseTrackingCode',$baseTrackingCode,CClientScript::POS_HEAD);// Putting it in head allow to set parameters in BEGIN
+
 			//Continue with the rest of the script.
-			$baseTrackingCode="_paq.push(['trackPageView']);
+			$baseTrackingCode.="_paq.push(['trackPageView']);
   _paq.push(['enableLinkTracking']);
   (function() {
     var u='".$piwikURL."';
@@ -301,59 +320,9 @@ class PiwikPlugin extends PluginBase {
 			App()->getClientScript()->registerScript('piwikPlugin_TrackingCode',$baseTrackingCode,CClientScript::POS_END);
 			$this->registeredTrackingCode=true; //Not sure really needed but keep track
 		}
-		$sController=App()->getUrlManager()->parseUrl(App()->getRequest());
-
-		// Construct a custom url
-		if(empty($sController))
-		{
-			$sController=Yii::app()->defaultController;
-		}
-		$aController=explode("/",$sController);
-
-		$iSurveyId=$this->getParam('sid');
-		if(!$iSurveyId)
-			$iSurveyId=$this->getParam('surveyid');
-
-		$piwikCustomUrl=$aController[0];
-		switch ($piwikCustomUrl)
-		{
-		case 'survey':
-			$piwikCustomUrl.="/".$iSurveyId;
-			if($this->getParam('newtest'))
-				$piwikCustomUrl.="/new";
-			elseif($this->getParam('clearall')){
-				$piwikCustomUrl.="/clear";
-				$this->trackEventUsingJS('Exit and Clear responses');
-			}
-			elseif($this->getParam('loadall')){
-				$piwikCustomUrl.="/load";
-				$this->trackEventUsingJS('Load previous responses (Login page)');
-			}
-			else
-				$piwikCustomUrl.="/".$this->getParam('move','unknown');
-			break;
-		case "optout":
-		case "optin":
-			$piwikCustomUrl="survey/".$iSurveyId."/".$piwikCustomUrl; //Todo: Cull URL
-			break;
-		case "statistics_user":
-			$piwikCustomUrl.="/".$iSurveyId;
-			break;
-		case "printanswers" :
-			$piwikCustomUrl.="/".$iSurveyId;
-			break;
-		case "surveys": // Actually : only survey list
-			break;
-		case 'plugins': // T
-			$piwikCustomUrl=$sController; // Validate if admin, or direct etc ...
-			break;
-		default:
-			$piwikCustomUrl=$sController; // Reset to controller
-			break;
-		}
-		// TODO : Option to set language
-
-		$this->setCustomURL($piwikCustomUrl);
+		// Add the default customUrl if needed
+		if ($this->get('piwik_rewriteURLs', null, null, $this->settings['piwik_rewriteURLs']['default']))
+			$this->setCustomURL($this->getDefaultParams());
 		$this->loadContentTracking_questionanswers();
 	}
 
@@ -367,13 +336,155 @@ class PiwikPlugin extends PluginBase {
 
 	/******* Page Tracking functions ********/
 
-	function setCustomURL($piwikCustomUrl){
-		if ($this->get('piwik_rewriteURLs', null, null, false)){
-			App()->getClientScript()->registerScript('piwikCustomUrlVariable',"
-            var _paq = _paq || [];
-            _paq.push(['setCustomUrl','$piwikCustomUrl']);",CClientScript::POS_BEGIN);
+	function setCustomURL($aUrlInfo){
+		if ($piwik_rewriteURLs=$this->get('piwik_rewriteURLs', null, null, $this->settings['piwik_rewriteURLs']['default']))
+		{
+			//Write the custom URL to the piwikForLimeSurvey JS variable. This is then read inside loadPiwikTrackingCode()
+			if(!is_array($this->aPiwikCustomParams))
+			{
+				$this->aPiwikCustomParams=array(
+					'base'=>null,// To know original controller : to be removed after
+					'sid'=>null,
+					'gid'=>null,
+					'qid'=>null,
+					'event'=>null,
+					'action'=>null,
+					'lang'=>null,
+				);
+			}
+			$this->aPiwikCustomParams=array_replace($this->aPiwikCustomParams,$aUrlInfo);
+			switch($piwik_rewriteURLs)
+			{
+				case 'admin':
+					$sCustomUrl=$this->getAdminUrl();
+					break;
+				case 'public':
+					$sCustomUrl=$this->getPublicUrl();
+					break;
+				case 'unreal':
+				case 1:
+				default:
+					$aParams=$this->aPiwikCustomParams;
+					$sController=$aParams['base'];
+					unset ($aParams['base']);
+					$sCustomUrl=Yii::app()->createUrl($sController."/".Yii::app()->getUrlManager()->createPathInfo(array_filter($aParams),"/","/"));
+					break;
+			}
+			$piwikCustomUrl="_paq.push(['setCustomUrl', '$sCustomUrl']);\n";
+			tracevar($sCustomUrl);
+			App()->getClientScript()->registerScript('piwikCustomUrlVariable',$piwikCustomUrl,CClientScript::POS_BEGIN); 
 		}
 	}
+
+	/**
+	 * A function to rewrite to admin page with actual information
+	 * Return string
+	 */
+	private function getAdminUrl()
+	{
+		$aParams=$this->aPiwikCustomParams;
+		$sController='admin/survey/';
+		switch ($aParams['base']) // Todo : other controller
+		{
+			case 'survey':
+				$aParamsl['sa']='view';
+				break;
+			default:
+				$aParams['sa']='index';
+				$aParams['event']=($aParams['event']) ? $aParams['event'] : $aParams['base'];
+				// leave base if other than survey listing
+				break;
+		}
+		unset ($aParams['base']);
+		$sController.=Yii::app()->getUrlManager()->createPathInfo(array_filter($aParams),"/","/");
+		return Yii::app()->createUrl($sController);
+	}
+	/**
+	 * A function to rewrite to publi page with actual information
+	 * Return string
+	 */
+	private function getPublicUrl()
+	{
+		$aParams=$this->aPiwikCustomParams;
+		switch ($aParams['base']) // Todo : other controller
+		{
+			case 'survey':
+				$sController='survey/index/';
+				break;
+			case 'statistics_user':
+				$sController='statistics_user/view/'; // Not sure for this one
+				break;
+			default:
+				$sController='surveys/index/';
+				$aParams['event']=$aParams['base'];
+				break;
+		}
+		unset ($aParams['base']);
+		$sController.=Yii::app()->getUrlManager()->createPathInfo(array_filter($aParams),"/","/");
+		return Yii::app()->createUrl($sController);
+	}
+	private function getDefaultParams()
+	{
+		$sController=App()->getUrlManager()->parseUrl(App()->getRequest());
+
+		// Construct a custom url
+		if(empty($sController))
+		{
+			$sController=Yii::app()->defaultController;
+		}
+		$aController=explode("/",$sController);
+		$sController=$aController[0];
+		$aCustomUrl=array(
+			'base'=>$sController,
+		);
+
+		$iSurveyId=$this->getParam('sid');
+		if(!$iSurveyId)
+			$iSurveyId=$this->getParam('surveyid');
+		$aCustomUrl['sid']=$iSurveyId;
+
+		switch ($sController)
+		{
+			case 'survey':
+				if($this->getParam('newtest'))
+					$aCustomUrl['action']='newtest';
+				elseif($this->getParam('clearall')){
+					$aCustomUrl['action']='clearall';
+					$this->trackEventUsingJS('Exit and Clear responses');
+				}
+				elseif($this->getParam('loadall')){
+					$aCustomUrl['action']='load';
+					$this->trackEventUsingJS('Load previous responses)');
+				}
+				elseif($this->getParam('saveall')){
+					$aCustomUrl['action']='save';
+					$this->trackEventUsingJS('Save responses)');
+				}
+				else
+				{
+					Yii::app()->loadHelper("frontend");
+					$sMove=getMove();// Helper from common helper
+					$aCustomUrl['action']=$sMove;
+				}
+				break;
+			default:
+				$aCustomUrl['event']=$sController;
+				// TODO : optin / optout / register
+				break;
+		}
+		$aCustomUrl['lang']=$this->getLanguage($iSurveyId);
+		return $aCustomUrl;
+	}
+
+    private function getLanguage($iSurveyId=null)
+    {
+        if($language=$this->getParam('lang'))
+            return $language;
+        if($language=$this->getParam('language'))
+            return $language;
+        if($iSurveyId && isset($_SESSION['survey_'.$iSurveyId]['s_lang']))
+            return $_SESSION['survey_'.$iSurveyId]['s_lang'];
+    }
 
 	/******* Event Tracking handlers ********/
 
@@ -392,7 +503,7 @@ class PiwikPlugin extends PluginBase {
 		$eventCategory=$this->get('piwik_trackEventsCategory',null,null,false);
 		$scriptName="piwikEventTracking_".$eventName.$eventValue.(string)rand(1,20000); //add a random number to ensure multiple identical events are tracked.
 		$js="_paq.push(['trackEvent', '$eventCategory', 'Survey-$iSurveyId', '$eventName','$eventValue']);";
-		App()->getClientScript()->registerScript($scriptName,$js,CClientScript::POS_END);
+		App()->getClientScript()->registerScript($scriptName,$js,CClientScript::POS_BEGIN);
 		return $scriptName; //return the name of the script in case we want to edit later.
 	}
 
@@ -427,10 +538,10 @@ $('#movenextbtn').on('click',function(){_paq.push(['trackEvent', '$eventCategory
 			if(!$iSurveyId)
 				$iSurveyId=$this->getParam('surveyid');
 
-			//Tags all inputs as content, to track content interactions
+			//Tags inputs with name and id, not :hidden as content, to track content interactions
 			$js="//Label the Piwik Content tracking pieces
     _paq.push(['trackVisibleContentImpressions']);
-        $('.question-wrapper').find('input').each(function(){
+        $('[id^=question]').find('input[name][id]:not(:hidden)').each(function(){
             $(this).attr('data-track-content','');
             thisid=$(this).attr('id');
             itemName=$(this).attr('name').toLowerCase();
