@@ -559,6 +559,8 @@ $('#movenextbtn').on('click',function(){_paq.push(['trackEvent', '$eventCategory
 	public function newDirectRequest(){
 		//Handles additional plugin pages, used to display
 		$event = $this->event;
+		if ($event->get('target') != get_class())
+			return;
 		$request = $event->get('request');
 		$functionToCall = $event->get('function');
 		$content = call_user_func(array($this,$functionToCall));
