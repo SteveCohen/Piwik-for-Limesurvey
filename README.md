@@ -9,7 +9,6 @@ This is currently *alpha* software. It's progressing rapidly, and will be Beta s
  ```
  git clone https://github.com/SteveCohen/Piwik-for-Limesurvey.git PiwikPlugin
  ```
-
  
 2. Use Limesurvey's 'Plugin Manager' to specify at least the Piwik URL and SiteID
 3. Test that it's working for you. 
@@ -32,7 +31,7 @@ Please do submit an issue if you have anything to add: Feedback, commits and cri
 		- [x] Survey resumption
 	- And consider others like...
 		- [ ] Survey starts (hits to welcome page)
-	- [ ] Allow event tracking to be enabled/disabled per-survey
+	- [x] Allow event tracking to be enabled/disabled per-survey
 - [x] Uses Piwik content tracking to track which questions have actually been displayed to respondents
 	- [x] Track interactions with response options (e.g. track whether some questions are changed more than others)
 	- [ ] Allow content tracking to be enabled/disabled per-survey
@@ -76,8 +75,12 @@ Limesurvey doesn't always use the most informative URLs. For example, if you loo
 ``` 
 /index.php/survey/index
 ```
-This feature rewrites the URLs to add information to the URL, and goes to an existing page according to parameters.
 
+This feature rewrites the URLs to add information to the URL, and goes to an existing page according to parameters.
+* Disabled : use the real link shown to the user
+* Unreal link : Start by survey id, follow by gid, qid , event (save,load ..)
+* Admin link : To the survey view, group view or question view, with more information
+* Public link : To start of the survey with more information
 
 ## Content Tracking: Track respondents' interactions with answer options
 Options: Enabled / Disabled
