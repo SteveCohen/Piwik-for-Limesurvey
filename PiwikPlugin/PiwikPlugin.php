@@ -206,12 +206,15 @@ class PiwikPlugin extends PluginBase {
 		$oRequest=$this->pluginManager->getAPI()->getRequest();
 		$sController=Yii::app()->getUrlManager()->parseUrl($oRequest);
 		$sAction=$this->getParam('action');
-		$bAdminPage= substr($sController, 0, 5)=='admin' || $sAction=='previewgroup' || $sAction=='previewquestion';// What for plugins ?
+		if ($sController=='upload/index');// Uploader return message broken : TODO test param('mode')
+			return;
 
-		if ( !$bAdminPage || $this->get('piwik_trackAdminPages', null, null, false))
-		{
-			$this->loadPiwikTrackingCode();
-		}
+		$bAdminPage= substr($sController, 0, 5)=='admin' || $sAction=='previewgroup' || $sAction=='previewquestion';// What for plugins ?
+		if ($bAdminPage && !$this->get('piwik_trackAdminPages', null, null, false) ) // Is an admin page
+			return;
+
+		$this->loadPiwikTrackingCode();
+
 	}
 
 	public function beforeSurveyPage(){
@@ -337,6 +340,7 @@ class PiwikPlugin extends PluginBase {
 	/******* Page Tracking functions ********/
 
 	function setCustomURL($aUrlInfo){
+
 		if ($piwik_rewriteURLs=$this->get('piwik_rewriteURLs', null, null, $this->settings['piwik_rewriteURLs']['default']))
 		{
 			//Write the custom URL to the piwikForLimeSurvey JS variable. This is then read inside loadPiwikTrackingCode()
@@ -371,7 +375,6 @@ class PiwikPlugin extends PluginBase {
 					break;
 			}
 			$piwikCustomUrl="_paq.push(['setCustomUrl', '$sCustomUrl']);\n";
-			tracevar($sCustomUrl);
 			App()->getClientScript()->registerScript('piwikCustomUrlVariable',$piwikCustomUrl,CClientScript::POS_BEGIN); 
 		}
 	}
@@ -559,7 +562,7 @@ $('#movenextbtn').on('click',function(){_paq.push(['trackEvent', '$eventCategory
 	public function newDirectRequest(){
 		//Handles additional plugin pages, used to display
 		$event = $this->event;
-		if ($event->get('target') != get_class())
+		if ($event->get('target') != get_class()) // Do it only for THIS plugin
 			return;
 		$request = $event->get('request');
 		$functionToCall = $event->get('function');
