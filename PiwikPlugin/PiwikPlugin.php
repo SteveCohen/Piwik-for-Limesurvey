@@ -203,10 +203,12 @@ class PiwikPlugin extends PluginBase {
 	public function afterPluginLoad(){
 		/* Find the active controller with Yii parseUrl */
 		/* Remove for admin controller, review for plugins/direct */
+
 		$oRequest=$this->pluginManager->getAPI()->getRequest();
 		$sController=Yii::app()->getUrlManager()->parseUrl($oRequest);
 		$sAction=$this->getParam('action');
-		if ($sController=='upload/index');// Uploader return message broken : TODO test param('mode')
+
+		if ($sController=='upload/index')// Uploader return message broken : TODO test param('mode')
 			return;
 
 		$bAdminPage= substr($sController, 0, 5)=='admin' || $sAction=='previewgroup' || $sAction=='previewquestion';// What for plugins ?
@@ -295,7 +297,6 @@ class PiwikPlugin extends PluginBase {
 	function loadPiwikTrackingCode(){
 		$piwikID=trim($this->get('piwik_siteID', null, null, false));
 		$piwikURL=trim($this->get('piwik_piwikURL', null, null, false));
-
 		//For comment: Could check if the last character is a slash to ensure it's a directory.
 		if (substr($piwikURL,-1)<>"/"){ $piwikURL=""; }
 
