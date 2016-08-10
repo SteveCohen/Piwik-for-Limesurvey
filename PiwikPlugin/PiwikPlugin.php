@@ -22,8 +22,8 @@
  */
 class PiwikPlugin extends PluginBase {
 	protected $storage = 'DbStorage';
-	static protected $description = 'Adds Piwik tracking codes to Limesurvey pages.';
-	static protected $name = 'Piwik for Limesurvey';
+	static protected $description = 'Adds Piwik tracking codes to LimeSurvey pages.';
+	static protected $name = 'Piwik for LimeSurvey';
 
 	protected $settings = array(
 		'piwik_title_BasicSettings'=>array(
@@ -581,7 +581,7 @@ $('#movenextbtn').on('click',function(){_paq.push(['trackEvent', '$eventCategory
 	}
 
 	function displayPiwikDashboard(){
-		//Simply displays the Piwik Dashboard within Limesurvey. User must already be logged in.
+		//Simply displays the Piwik Dashboard within LimeSurvey. User must already be logged in.
 
 		//$thisURL=$this->api->createUrl('plugins/direct', array('plugin' => 'pluginClass', 'function' => 'functionName'));
 		//http://192.168.2.2/limesurvey/index.php/plugins/direct?plugin=piwikPlugin&function=displayPiwikDashboard
