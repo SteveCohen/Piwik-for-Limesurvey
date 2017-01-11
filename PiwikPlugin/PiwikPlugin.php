@@ -211,13 +211,11 @@ class PiwikPlugin extends PluginBase {
 		/* Remove for admin controller, review for plugins/direct */
 		$oRequest=$this->pluginManager->getAPI()->getRequest();
 		$sController=Yii::app()->getUrlManager()->parseUrl($oRequest);
-		$sAction=$this->getParam('action');
 
 		if ($sController=='upload/index')// Uploader return message broken : see @todo
 			return;
 
-		$bAdminPage= substr($sController, 0, 5)=='admin' || $sAction=='previewgroup' || $sAction=='previewquestion';// What for plugins, see @todo
-		if ($bAdminPage && !$this->get('piwik_trackAdminPages', null, null, false) ) // Is an admin page
+		if ($this->onAdminPanel() && !$this->get('piwik_trackAdminPages', null, null, false) ) // Is an admin page
 			return;
 
 		$this->loadPiwikTrackingCode();
@@ -598,6 +596,11 @@ $('#movenextbtn').on('click',function(){_paq.push(['trackEvent', '$eventCategory
 
 	}
 
+	public function onAdminPanel() {
+        $oRequest       = $this->pluginManager->getAPI()->getRequest();
+        $sController    = Yii::app()->getUrlManager()->parseUrl($oRequest);
+        $sAction        = $this->getParam('action');
 
-
+		return substr($sController, 0, 5) == 'admin' || $sAction == 'previewgroup' || $sAction == 'previewquestion';
+	}
 }
