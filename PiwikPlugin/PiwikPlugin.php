@@ -328,7 +328,7 @@ class PiwikPlugin extends PluginBase {
 			$this->registeredTrackingCode=true; //Not sure really needed but keep track
 		}
 		// Add the default customUrl if needed
-		if ($this->get('piwik_rewriteURLs', null, null, $this->settings['piwik_rewriteURLs']['default']))
+		if (! $this->onAdminPanel() && $this->get('piwik_rewriteURLs', null, null, $this->settings['piwik_rewriteURLs']['default']))
 			$this->setCustomURL($this->getDefaultParams());
 		$this->loadContentTracking_questionanswers();
 	}
@@ -344,7 +344,7 @@ class PiwikPlugin extends PluginBase {
 	/******* Page Tracking functions ********/
 
 	function setCustomURL($aUrlInfo){
-		if ($piwik_rewriteURLs=$this->get('piwik_rewriteURLs', null, null, $this->settings['piwik_rewriteURLs']['default']))
+		if (! $this->onAdminPanel() && $this->get('piwik_rewriteURLs', null, null, $this->settings['piwik_rewriteURLs']['default']))
 		{
 			//Write the custom URL to the piwikForLimeSurvey JS variable. This is then read inside loadPiwikTrackingCode()
 			if(!is_array($this->aPiwikCustomParams))
