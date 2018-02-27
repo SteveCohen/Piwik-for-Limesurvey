@@ -20,6 +20,9 @@
  * GNU General Public License for more details.
  *
  */
+
+use LimeSurvey\PluginManager\PluginManager;
+
 class PiwikPlugin extends PluginBase {
 	protected $storage = 'DbStorage';
 	static protected $description = 'Adds Piwik tracking codes to LimeSurvey pages.';
